@@ -23,6 +23,9 @@ class AverageMeter(object):
 
 
 def accuracy(output, target, topk=(1, )):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    target = target.to(device)
+    
     maxk = max(topk)
     batch_size = target.size(0)
 
@@ -40,6 +43,7 @@ def accuracy(output, target, topk=(1, )):
 
 
 def train(model, train_loader, criterion, optimizer, epoch_log):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -55,10 +59,12 @@ def train(model, train_loader, criterion, optimizer, epoch_log):
     for i, (input, target) in enumerate(train_loader):
         data_time.update(time.time() - end)
 
-        input = input.cuda(async=True)
-        target = target.cuda(async=True)
-        input_var = torch.autograd.Variable(input, volatile=True)
-        target_var = torch.autograd.Variable(target, volatile=True)
+        # input = input.cuda(async=True)
+        # target = target.cuda(async=True)
+        input_var = input.to(device)
+        target_var = target.to(device)
+        # input_var = torch.autograd.Variable(input, volatile=True)
+        # target_var = torch.autograd.Variable(target, volatile=True)
 
         output = model(input_var)
         loss = criterion(output, target_var)
@@ -87,6 +93,7 @@ def train(model, train_loader, criterion, optimizer, epoch_log):
 
 
 def valid(model, valid_loader, criterion):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
@@ -98,30 +105,33 @@ def valid(model, valid_loader, criterion):
 
     valid_iter = len(valid_loader)
 
-    for i, (input, target) in enumerate(valid_loader):
-        input = input.cuda(async=True)
-        target = target.cuda(async=True)
-        input_var = torch.autograd.Variable(input, volatile=True)
-        target_var = torch.autograd.Variable(target, volatile=True)
+    with torch.no_grad():
+        for i, (input, target) in enumerate(valid_loader):
+            # input = input.cuda(async=True)
+            # target = target.cuda(async=True)
+            input_var = input.to(device)
+            target_var = target.to(device)
+            # input_var = torch.autograd.Variable(input, volatile=True)
+            # target_var = torch.autograd.Variable(target, volatile=True)
 
-        output = model(input_var)
-        loss = criterion(output, target_var)
+            output = model(input_var)
+            loss = criterion(output, target_var)
 
-        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
+            prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
 
-        losses.update(loss.data, input.size(0))
-        top1.update(prec1[0], input.size(0))
-        top5.update(prec5[0], input.size(0))
+            losses.update(loss.data, input.size(0))
+            top1.update(prec1[0], input.size(0))
+            top5.update(prec5[0], input.size(0))
 
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
+            # measure elapsed time
+            batch_time.update(time.time() - end)
+            end = time.time()
 
-        print(f'Iter: [{i}/{valid_iter}]\n'
-              f'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\n'
-              f'Loss {losses.val:.4f} ({losses.avg:.4f})\n'
-              f'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\n'
-              f'Prec@5 {top5.val:.3f} ({top5.avg:.3f})\n')
+            print(f'Iter: [{i}/{valid_iter}]\n'
+                  f'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\n'
+                  f'Loss {losses.val:.4f} ({losses.avg:.4f})\n'
+                  f'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\n'
+                  f'Prec@5 {top5.val:.3f} ({top5.avg:.3f})\n')
 
     print(f' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} \n')
 
