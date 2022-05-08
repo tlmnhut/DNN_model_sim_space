@@ -10,6 +10,7 @@ from vgg import vgg16
 from apoz import APoZ
 from helper import save_pkl, load_pkl, valid
 from converter import conv_post_mask, linear_mask, linear_pre_mask
+from torchsummary import summary
 
 parser = argparse.ArgumentParser(description='Network Trimming')
 parser.add_argument('--data_path', type=str, default='/home/ubuntu/datasets/imagenet',
@@ -23,8 +24,8 @@ parser.add_argument('--select_rate', type=int, default=0,
                          '3 : (420, 2121) \n'
                          '4 : (400, 1787) \n'
                          '5 : (390, 1513)')
-parser.add_argument('--apoz_path', type=str, default='./vgg_apoz_fc.pkl',
-                    help='Path to apoz pkl')
+parser.add_argument('--apoz_path', type=str, default='./vgg_imagenet_apoz_fc.pkl',
+                    help='Path to apoz_stats pkl')
 parser.add_argument('--batch_size', type=int, default=10)
 parser.add_argument('--device', '-d', type=str, default='cuda',
                     help='select [cpu / cuda]')
@@ -52,7 +53,7 @@ val_transform = transforms.Compose([
                          std=[0.229, 0.224, 0.225])
 ])
 
-valid_dataset = datasets.ImageFolder(os.path.join(args.data_path, 'val'),
+valid_dataset = datasets.ImageFolder(os.path.join(args.data_path, ''),
                                      transform=val_transform)
 
 valid_loader = torch.utils.data.DataLoader(valid_dataset,
@@ -63,9 +64,9 @@ criterion = nn.CrossEntropyLoss().cuda()
 
 model = vgg16(pretrained=True).to(args.device)
 
-show_summary(model)
+summary(model, (3, 224, 224))
 
-# save apoz pkl
+# save apoz_stats pkl
 if not os.path.exists(args.apoz_path):
     apoz = APoZ(model).get_apoz(valid_loader, criterion)
     save_pkl(apoz, args.apoz_path)
@@ -73,7 +74,7 @@ if not os.path.exists(args.apoz_path):
 else:
     apoz = load_pkl(args.apoz_path)
 
-# info apoz
+# info apoz_stats
 print("Average Percentage Of Zero Mean")
 for n, p in zip(module_name, apoz):
     print(f"{n} : {p.mean() * 100 : .2f}%")
